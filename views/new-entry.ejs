@@ -1,0 +1,23 @@
+<form action="/entries" method="POST">
+
+    <label for="date">Date:</label>
+    <input type="date" name="date" required>
+
+    <label for="mood">Mood:</label>
+    <input type="text" name="mood" required>
+
+    <label for="symptoms">Symptoms:</label>
+    <input type="text" name="symptoms">
+
+    <label for="energy_level">Energy Level (1-10):</label>
+    <input type="number" name="energy_level" min="1" max="10">
+
+    <label for="sleep_quality">Sleep Quality (1-10):</label>
+    <input type="number" name="sleep_quality" min="1" max="10">
+
+    <label for="notes">Notes:</label>
+    <textarea name="notes"></textarea>
+
+    <button type="submit">Add Entry</button>
+    
+</form>
