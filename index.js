@@ -3,8 +3,8 @@ import bodyParser from "body-parser";
 import pg from "pg";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts"
-import fs from "fs";
-import path from "path";
+
+
 
 dotenv.config();
 const app = express();
@@ -150,6 +150,28 @@ app.get("/search", async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).send("An error occurred while retrieving the entry.");
+    }
+});
+
+app.get('/analytics', async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT date, mood
+            FROM daily_entries
+            WHERE date >= NOW() - INTERVAL '1 month'
+            ORDER BY date ASC
+        `);
+
+        const dates = result.rows.map(row => row.date.toISOString().split("T")[0]);
+        const moodData = result.rows.map(row => row.mood);
+
+        res.render("analytics", {
+            dates: JSON.stringify(dates),
+            moodData: JSON.stringify(moodData)
+        });
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        res.status(500).send("Error fetching data");
     }
 });
 
