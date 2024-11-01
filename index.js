@@ -2,6 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import pg from "pg";
 import dotenv from "dotenv";
+import expressLayouts from "express-ejs-layouts"
 
 dotenv.config();
 const app = express();
@@ -26,6 +27,8 @@ db.connect((err) =>{
 
 app.set('view engine', 'ejs');
 app.set('views', './views');
+app.use(expressLayouts);
+app.set("layout", "layout");
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
