@@ -3,6 +3,8 @@ import bodyParser from "body-parser";
 import pg from "pg";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts"
+import fs from "fs";
+import path from "path";
 
 dotenv.config();
 const app = express();
@@ -33,13 +35,30 @@ app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-
 app.get("/", (req, res) => {
     res.render("index");
 });
 
-app.get("/test-header", (req, res) => {
-    res.render("partials/header");
+app.get('/new-entry', (req, res) => {
+    res.render("new-entry");
+});
+
+app.post('/new-entry', async (req, res) => {
+    const { date, mood, symptoms, energy_level, sleep_quality, notes } = req.body;
+
+    try {
+
+        await db.query(
+            `INSERT INTO daily_entries (date, mood, symptoms, energy_level, sleep_quality, notes)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [date, mood, symptoms, energy_level, sleep_quality, notes]
+        );
+
+        res.redirect('/entries');
+    } catch (error) {
+        console.error("Error adding entry:", error);
+        res.status(500).send("Error adding entry");
+    }
 });
 
 app.get('/entries', async (req, res) => {
