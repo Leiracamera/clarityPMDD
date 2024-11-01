@@ -28,14 +28,18 @@ db.connect((err) =>{
 app.set('view engine', 'ejs');
 app.set('views', './views');
 app.use(expressLayouts);
-app.set("layout", "layout");
+app.set("layout", "layouts/layout");
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 
 app.get("/", (req, res) => {
-    res.render("new-entry");
+    res.render("index");
+});
+
+app.get("/test-header", (req, res) => {
+    res.render("partials/header");
 });
 
 app.get('/entries', async (req, res) => {
