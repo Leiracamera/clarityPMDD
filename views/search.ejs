@@ -1,0 +1,23 @@
+<form action="/search" method="GET">
+    <div class="form-group row">
+        <label for="searchDate" class="col-sm-2 col-form-label">SEARCH BY DATE</label>
+        <div class="col-sm-8">
+            <input type="date" class="form-control" id="searchDate" name="date" required>
+        </div>
+        <div class="col-sm-2">
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </div>
+    </div>
+</form>
+
+<% if (entry) { %>
+    <h2>Entry Details</h2>
+        <p><strong>Date:</strong> <%= entry.date %></p>
+        <p><strong>Mood:</strong> <%= entry.mood %></p>
+        <p><strong>Symptoms:</strong> <%= entry.symptoms %></p>
+        <p><strong>Energy Level:</strong> <%= entry.energy_level %></p>
+        <p><strong>Sleep Quality:</strong> <%= entry.sleep_quality %></p>
+        <p><strong>Notes:</strong> <%= entry.notes %></p>
+    <% } else if (message) { %>
+        <p><%= message %></p>
+    <% } %>

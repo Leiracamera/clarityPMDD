@@ -4,7 +4,10 @@ body {
     padding: 0;
     background-color: #f7f7f7;
     color: #333;
-    background-color: pink;
+}
+
+main {
+    padding: 50px;
 }
 
 ul {
@@ -41,6 +44,7 @@ button:disabled {
 
 form {
     margin-top: 10px;
+    width: 50%;
 }
 
 input[type="text"],
@@ -61,4 +65,12 @@ textarea {
 
 form button {
     margin-top: 5px;
+}
+
+header {
+    background-color: #007BFF; 
+    color: white; 
+    padding: 1em; 
+    text-align: center;
+
 }

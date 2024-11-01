@@ -102,6 +102,34 @@ app.post("/delete/:id", async (req, res) => {
     }
 });
 
+app.get("/search", async (req, res) => {
+    console.log("req.query:", req.query);
+
+    if (!req.query.date) {
+        console.log("Initial load - no date provided.");
+        return res.render("search", {entry: null, message: null});
+    }
+
+    try {
+        const query = `SELECT * FROM daily_entries WHERE date = $1`;
+        console.log("Running query with date:", req.query.date);
+
+        const result = await db.query( query, [req.query.date]);
+        console.log("Query result:", result.rows);
+
+        if (result.rows.length > 0) {
+            console.log("Entry found:", result.rows[0]);
+            res.render("search", { entry: result.rows[0], message: null });
+        } else {
+            console.log("No entry found for this date.");
+            res.render("search", { entry: null, message: "No entry found for this date." });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("An error occurred while retrieving the entry.");
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
