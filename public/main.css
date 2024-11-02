@@ -74,3 +74,12 @@ header {
     text-align: center;
 
 }
+
+.quote-banner {
+    background-color: rgb(255, 255, 255);
+    color: rgb(59, 112, 237);
+    font-style: italic;
+    margin-top: 15px;
+    padding: 3px;
+    border-radius: 5px;
+}

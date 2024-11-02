@@ -3,6 +3,7 @@ import bodyParser from "body-parser";
 import pg from "pg";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts"
+import axios from "axios";
 
 
 
@@ -35,7 +36,19 @@ app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+app.use(async (rex, res, next) => {
+    try {
+        const response = await axios.get("https://www.affirmations.dev/");
+        res.locals.quote = response.data.affirmation;
+    } catch (error) {
+        console.error("Error fetching the quote:", error.message);
+        res.locals.quote = "This, too, shall pass.";
+    }
+    next();
+});
+
 app.get("/", (req, res) => {
+
     res.render("index");
 });
 
