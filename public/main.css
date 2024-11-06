@@ -1,13 +1,32 @@
+html {
+    scroll-behavior: smooth;
+}
+
+
 body {
-    font-family: Arial, sans-serif;
+    font-family: "Spectral", serif;
+    font-weight: 400;
+    font-style: normal;
     margin: 0;
     padding: 0;
     background-color: #f7f7f7;
-    color: #333;
+    background-color: #f4e7bc;
+    background-image: linear-gradient(118deg, #f4e7bc 0%, #f6d98f 19%, #ff9999 39%, #9bdffa 60%, #74f1e2 80%, #4bafce 100%);
+;
+
 }
 
 main {
     padding: 50px;
+    width: 80%;
+    max-width: 1200px;
+}
+
+@media (max-width: 768px) {
+    main {
+        padding: 20px;
+        width: 90%;
+    }
 }
 
 ul {
@@ -44,7 +63,7 @@ button:disabled {
 
 form {
     margin-top: 10px;
-    width: 50%;
+    width: 100%;
 }
 
 input[type="text"],
@@ -68,18 +87,72 @@ form button {
 }
 
 header {
-    background-color: #007BFF; 
+    background: rgb(131,58,180);
+    background: linear-gradient(90deg, rgba(131,58,180,1) 0%, rgba(253,29,29,1) 50%, rgba(252,176,69,1) 100%);
     color: white; 
     padding: 1em; 
     text-align: center;
 
 }
 
+h1 {
+    font-family: "Spectral", serif;
+    font-weight: 700;
+    font-style: normal;
+}
+
+.quote-banner-container {
+    display: flex; 
+    justify-content: center; 
+    padding: 1em 0em; 
+}
+
 .quote-banner {
+    display: inline-block;
     background-color: rgb(255, 255, 255);
-    color: rgb(59, 112, 237);
+    padding: 0.2em 1em;
+    border-radius: 8px;
+    color: rgb(50, 51, 51);
+    font-family: "Gowun Dodum", sans-serif;
+    font-weight: 400;
     font-style: italic;
     margin-top: 15px;
-    padding: 3px;
-    border-radius: 5px;
+    text-align: center;
 }
+
+/* Full-width banner background */
+.feature-section {
+    width: 100vw; /* Full viewport width */
+    padding: 3rem 0;
+    background-color: #355d73;
+    color: #ffffff;
+}
+
+/* Center icons within each feature */
+.feature-icon {
+    margin-bottom: 1rem; /* Space between icon and heading */
+    /* Removed rounded-circle styling */
+}
+
+/* Text alignment and layout */
+.feature-item {
+    text-align: center;
+}
+
+.container {
+    max-width: 100%; /* Ensures the content spans the full width */
+}
+
+.container {
+    max-width: 1200px; /* Adjust this to your preference */
+    margin: 0 auto;
+    padding: 0 15px; /* Add some horizontal padding */
+}
+
+.section {
+    min-height: 100vh; /* Full viewport height */
+    display: flex;
+    align-items: center; /* Vertically center content */
+    padding: 3rem 0; /* Add padding to avoid cramped content */
+}
+

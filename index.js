@@ -52,6 +52,11 @@ app.get("/", (req, res) => {
     res.render("index");
 });
 
+app.get("/test-home", (req, res) => {
+
+    res.render("bootstrap-home-page");
+});
+
 app.get('/new-entry', (req, res) => {
     res.render("new-entry");
 });
