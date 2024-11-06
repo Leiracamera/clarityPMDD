@@ -2,16 +2,25 @@
 
 <header>
     <h1>PMDD Tracker</h1>
-    <nav>
-        <a href="/" style="color: white; margin: 0 10px;">Home</a>
-        <a href="/entries" style="color: white; margin: 0 10px;">All Entries</a>
-        <a href="/new-entry" style="color: white; margin: 0 10px;">Add New Entry</a>
-        <a href="/search" style="color: white; margin: 0 10px;">Search Entries</a>
-        <a href="/analytics" style="color: white; margin: 0 10px;">Monthly Mood</a>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a href="/" class="nav-brand">HOME</a>
+       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+            <div class="navbar-nav">
+                <a class="nav-item nav-link" href="/entries">ALL ENTRIES</a>
+                <a class="nav-item nav-link" href="/new-entry">NEW ENTRY</a>
+                <a class="nav-item nav-link" href="/search">SEARCH</a>
+                <a class="nav-item nav-link" href="/analytics">MONTHLY MOOD</a>
+            </div>
+        </div>
     </nav>
+
 
     <div class="quote-banner-container">
         <p class="quote-banner"><%= quote %></p>
     </div>
 </header>
 <hr>
+
