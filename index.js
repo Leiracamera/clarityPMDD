@@ -193,6 +193,31 @@ app.get('/analytics', async (req, res) => {
     }
 });
 
+app.get('/new-user', (req, res) => {
+    res.render("new-user");
+});
+
+app.post('/new-user', async (req, res) => {
+    console.log("Received a POST request at /new-user");
+    console.log("Request body:", req.body);
+
+    const { username, email, password } = req.body;
+
+    try {
+
+        await db.query(
+            `INSERT INTO users (username, email, password)
+             VALUES ($1, $2, $3)`,
+            [username, email, password]
+        );
+
+        res.send("New user created successfully!");
+    } catch (error) {
+        console.error("Error adding entry:", error);
+        res.status(500).send("Error adding user");
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
