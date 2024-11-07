@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts"
 import axios from "axios";
 import bcrypt from 'bcrypt';
+import session from 'express-session';
 
 
 
@@ -36,6 +37,11 @@ app.set("layout", "layouts/layout");
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+}));
 
 app.use(async (rex, res, next) => {
     try {
@@ -65,12 +71,16 @@ app.get('/new-entry', (req, res) => {
 app.post('/new-entry', async (req, res) => {
     const { date, mood, symptoms, energy_level, sleep_quality, notes } = req.body;
 
+    if (!req.session.user_id) {
+        return res.status(401).send("Unauthorized: Please log in.");
+    }
+
     try {
 
         await db.query(
-            `INSERT INTO daily_entries (date, mood, symptoms, energy_level, sleep_quality, notes)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [date, mood, symptoms, energy_level, sleep_quality, notes]
+            `INSERT INTO daily_entries (date, mood, symptoms, energy_level, sleep_quality, notes, user_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [date, mood, symptoms, energy_level, sleep_quality, notes, req.session.user_id]
         );
 
         res.redirect('/entries');
@@ -81,9 +91,17 @@ app.post('/new-entry', async (req, res) => {
 });
 
 app.get('/entries', async (req, res) => {
-    try {
-        const result = await db.query('SELECT * FROM daily_entries ORDER BY date DESC');
-        res.render("entries", { entries: result.rows });
+
+if (!req.session.user_id) {
+    return res.status(401).send("Unauthorized: Please log in.")
+}
+
+try {
+    const result = await db.query(
+        'SELECT * FROM daily_entries WHERE user_id = $1 ORDER BY date DESC',
+        [req.session.user_id]
+    );
+    res.render("entries", { entries: result.rows });
     } catch (error) {
         console.error('Error fetching entries:', error);
         res.status(500).send('Error fetching entries');
@@ -233,6 +251,7 @@ app.post('/login', async (req, res) => {
             return res.status(400).send("Invalid email or password");
         }
 
+        req.session.user_id = user.user_id;
         res.send("Login successful!");
     } catch (error) {
         console.error("Error logging in:", error.message);
