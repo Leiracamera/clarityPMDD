@@ -4,6 +4,7 @@ import pg from "pg";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts"
 import axios from "axios";
+import bcrypt from 'bcrypt';
 
 
 
@@ -198,23 +199,44 @@ app.get('/new-user', (req, res) => {
 });
 
 app.post('/new-user', async (req, res) => {
-    console.log("Received a POST request at /new-user");
-    console.log("Request body:", req.body);
-
     const { username, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
 
         await db.query(
             `INSERT INTO users (username, email, password)
              VALUES ($1, $2, $3)`,
-            [username, email, password]
+            [username, email, hashedPassword]
         );
 
         res.send("New user created successfully!");
     } catch (error) {
         console.error("Error adding entry:", error);
         res.status(500).send("Error adding user");
+    }
+});
+
+
+app.get('/login', (req, res) => {
+    res.render("login");
+});
+
+app.post('/login', async (req, res) => {
+    const {email, password } = req.body;
+
+    try {
+        const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        const user = result.rows[0];
+
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(400).send("Invalid email or password");
+        }
+
+        res.send("Login successful!");
+    } catch (error) {
+        console.error("Error logging in:", error.message);
+        res.status(500).send("An error ocurred during login");
     }
 });
 
