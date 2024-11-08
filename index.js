@@ -271,6 +271,20 @@ app.post('/login', async (req, res) => {
     }
 });
 
+app.get('/logout', (req, res) => {
+    if (req.session) {
+        req.session.destroy((err) => {
+            if (err) {
+                return res.status(400).send('Unable to log out');
+            } else {
+                res.redirect('/login'); // Or redirect to home page, if preferred
+            }
+        });
+    } else {
+        res.redirect('/login');
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
