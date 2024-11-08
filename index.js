@@ -31,10 +31,10 @@ db.connect((err) =>{
 });
 
 app.set('view engine', 'ejs');
-app.set('views', './views');
-app.use(expressLayouts);
-app.set("layout", "layouts/layout");
 app.use(express.static('public'));
+app.use(expressLayouts);
+app.set('views', './views');
+app.set("layout", "layouts/layout");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(session({
@@ -65,28 +65,32 @@ app.use(async (req, res, next) => {
     next();
 });
 
+function ensureAuth(req, res, next) {
+    if(req.session.user) {
+        next();
+    } else {
+        res.redirect('/login');
+    }
+}
+
 app.get("/", (req, res) => {
 
     res.render("index");
 });
 
-app.get('/new-entry', (req, res) => {
+app.get('/new-entry', ensureAuth, (req, res) => {
     res.render("new-entry");
 });
 
-app.post('/new-entry', async (req, res) => {
+app.post('/new-entry', ensureAuth, async (req, res) => {
     const { date, mood, symptoms, energy_level, sleep_quality, notes } = req.body;
-
-    if (!req.session.user) {
-        return res.status(401).send("Unauthorized: Please log in.");
-    }
 
     try {
 
         await db.query(
             `INSERT INTO daily_entries (date, mood, symptoms, energy_level, sleep_quality, notes, user_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [date, mood, symptoms, energy_level, sleep_quality, notes, req.session.user_id]
+            [date, mood, symptoms, energy_level, sleep_quality, notes, req.session.user.user_id]
         );
 
         res.redirect('/entries');
@@ -96,16 +100,12 @@ app.post('/new-entry', async (req, res) => {
     }
 });
 
-app.get('/entries', async (req, res) => {
-
-if (!req.session.user) {
-    return res.status(401).send("Unauthorized: Please log in.")
-}
+app.get('/entries', ensureAuth, async (req, res) => {
 
 try {
     const result = await db.query(
         'SELECT * FROM daily_entries WHERE user_id = $1 ORDER BY date DESC',
-        [req.session.user_id]
+        [req.session.user.user_id]
     );
     res.render("entries", { entries: result.rows });
     } catch (error) {
@@ -130,13 +130,10 @@ app.post("/entries", async (req, res) => {
     }
 });
 
-app.post("/edit/:id", async (req, res) => {
+app.post("/edit/:id", ensureAuth, async (req, res) => {
     const entryId = req.params.id;
     const { date, mood, symptoms, energy_level, sleep_quality, notes } = req.body;
 
-    if (!req.session.user) {
-        return res.status(401).send("Unauthorized: Please log in.");
-    }
     try {
         const query = `
             UPDATE daily_entries
@@ -157,13 +154,9 @@ app.post("/edit/:id", async (req, res) => {
     }
 });
 
-app.post("/delete/:id", async (req, res) => {
+app.post("/delete/:id", ensureAuth, async (req, res) => {
     const entryId = req.params.id;
     
-    if (!req.session.user) {
-        return res.status(401).send("Unauthorized: Please log in.");
-    }
-
     try {
         const query = "DELETE FROM daily_entries WHERE entry_id = $1 AND user_id = $2";
         await db.query(query, [entryId, req.session.user.user_id]);
@@ -175,7 +168,7 @@ app.post("/delete/:id", async (req, res) => {
     }
 });
 
-app.get("/search", async (req, res) => {
+app.get("/search", ensureAuth, async (req, res) => {
     console.log("req.query:", req.query);
 
     if (!req.query.date) {
@@ -203,7 +196,7 @@ app.get("/search", async (req, res) => {
     }
 });
 
-app.get('/analytics', async (req, res) => {
+app.get('/analytics', ensureAuth, async (req, res) => {
     try {
         const result = await db.query(`
             SELECT date, mood
