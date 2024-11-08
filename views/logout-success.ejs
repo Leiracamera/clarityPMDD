@@ -1,0 +1,8 @@
+<% if(req.query.loggedOut === "true") { %>
+    <h1>Logout Successful</h1>
+    <p>You have been successfully logged out.</p>
+<% } else { %>
+    <h1>Access Denied</h1>
+    <p>You are not authorized to view this page.</p>  
+<% } %>  
+    <a href="/login">Go to Login</a>

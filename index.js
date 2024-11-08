@@ -48,6 +48,7 @@ app.use(flash());
 app.use((req, res, next) => {
     res.locals.successMessage = req.flash('success');
     res.locals.errorMessage = req.flash('error');
+    res.locals.infoMessage = req.flash('info');
     next();
 });
 
@@ -61,6 +62,14 @@ app.use((req, res, next) => {
     }
     next();
 });
+
+function preventLoginAccess(req, res, next) {
+    if (req.session.user) {
+        req.flash("info", "You are already logged in.");
+        return res.redirect("/");
+    }
+    next();
+}
 
 app.use(async (req, res, next) => {
     try {
@@ -232,7 +241,7 @@ app.get('/analytics', ensureAuth, async (req, res) => {
     }
 });
 
-app.get('/new-user', (req, res) => {
+app.get('/new-user', preventLoginAccess, (req, res) => {
     res.render("new-user");
 });
 
@@ -257,7 +266,7 @@ app.post('/new-user', async (req, res) => {
 });
 
 
-app.get('/login', (req, res) => {
+app.get('/login', preventLoginAccess, (req, res) => {
     res.render("login");
 });
 
@@ -288,16 +297,21 @@ app.get('/logout', (req, res) => {
     if (req.session) {
         req.session.destroy((err) => {
             if (err) {
-                req.flash('error', 'Unable to log out');
-                return res.status(400).send('Unable to log out');
+                console.error("Logout error:", err);
+                return res.redirect('/');
             } else {
-                req.flash('success', 'You have logged out successfully.');
-                res.redirect('/login');
+                console.log("Session destroyed successfully"); 
+                res.redirect('/logout-success?loggedOut=true');
             }
         });
     } else {
-        res.redirect('/login');
+        console.log("Session destroyed successfully"); 
+        res.render('logout-success', {req});
     }
+});
+
+app.get('/logout-success', (req, res) => {
+    res.render('logout-success', { req }); // Pass req to use req.query in EJS
 });
 
 

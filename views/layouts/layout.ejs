@@ -31,6 +31,12 @@
                 <%= errorMessage %>
             </div>
         <% } %>
+
+        <% if (infoMessage && infoMessage.length > 0) { %>
+            <div class="alert alert-info">
+                <%= infoMessage %>
+            </div>
+        <% } %>
      
         <!-- Page Content -->
         <%- body %> 
