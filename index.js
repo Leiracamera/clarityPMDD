@@ -70,11 +70,6 @@ app.get("/", (req, res) => {
     res.render("index");
 });
 
-app.get("/test-home", (req, res) => {
-
-    res.render("bootstrap-home-page");
-});
-
 app.get('/new-entry', (req, res) => {
     res.render("new-entry");
 });
@@ -82,7 +77,7 @@ app.get('/new-entry', (req, res) => {
 app.post('/new-entry', async (req, res) => {
     const { date, mood, symptoms, energy_level, sleep_quality, notes } = req.body;
 
-    if (!req.session.user_id) {
+    if (!req.session.user) {
         return res.status(401).send("Unauthorized: Please log in.");
     }
 
@@ -103,7 +98,7 @@ app.post('/new-entry', async (req, res) => {
 
 app.get('/entries', async (req, res) => {
 
-if (!req.session.user_id) {
+if (!req.session.user) {
     return res.status(401).send("Unauthorized: Please log in.")
 }
 
@@ -139,6 +134,9 @@ app.post("/edit/:id", async (req, res) => {
     const entryId = req.params.id;
     const { date, mood, symptoms, energy_level, sleep_quality, notes } = req.body;
 
+    if (!req.session.user) {
+        return res.status(401).send("Unauthorized: Please log in.");
+    }
     try {
         const query = `
             UPDATE daily_entries
@@ -161,10 +159,14 @@ app.post("/edit/:id", async (req, res) => {
 
 app.post("/delete/:id", async (req, res) => {
     const entryId = req.params.id;
+    
+    if (!req.session.user) {
+        return res.status(401).send("Unauthorized: Please log in.");
+    }
 
     try {
-        const query = "DELETE FROM daily_entries WHERE entry_id = $1";
-        await db.query(query, [entryId]);
+        const query = "DELETE FROM daily_entries WHERE entry_id = $1 AND user_id = $2";
+        await db.query(query, [entryId, req.session.user.user_id]);
         console.log("Entry has been deleted from database");
         res.redirect("/entries");
     } catch (error) {
@@ -239,7 +241,7 @@ app.post('/new-user', async (req, res) => {
             [username, email, hashedPassword]
         );
 
-        res.send("New user created successfully!");
+        res.redirect('/login');
     } catch (error) {
         console.error("Error adding entry:", error);
         res.status(500).send("Error adding user");
@@ -264,7 +266,7 @@ app.post('/login', async (req, res) => {
 
         req.session.user = user;
         console.log('Session data after login:', req.session);        
-        res.send("Login successful!");
+        res.redirect('/');
     } catch (error) {
         console.error("Error logging in:", error.message);
         res.status(500).send("An error ocurred during login");
