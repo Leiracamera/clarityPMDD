@@ -4,8 +4,9 @@ import pg from "pg";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts"
 import axios from "axios";
-import bcrypt from 'bcrypt';
-import session from 'express-session';
+import bcrypt from "bcrypt";
+import session from "express-session";
+import flash from "connect-flash";
 
 
 
@@ -42,6 +43,13 @@ app.use(session({
     resave: false,
     saveUninitialized: true,
 }));
+
+app.use(flash());
+app.use((req, res, next) => {
+    res.locals.successMessage = req.flash('success');
+    res.locals.errorMessage = req.flash('error');
+    next();
+});
 
 app.use((req, res, next) => {
     if (req.session.user) {
@@ -93,10 +101,12 @@ app.post('/new-entry', ensureAuth, async (req, res) => {
             [date, mood, symptoms, energy_level, sleep_quality, notes, req.session.user.user_id]
         );
 
+        req.flash("success", "New Entry Added");
         res.redirect('/entries');
     } catch (error) {
         console.error("Error adding entry:", error);
-        res.status(500).send("Error adding entry");
+        req.flash("error", "Error adding entry, please try again.");
+        res.redirect('/new-entry');
     }
 });
 
@@ -143,14 +153,16 @@ app.post("/edit/:id", ensureAuth, async (req, res) => {
                 energy_level = COALESCE($4, energy_level),
                 sleep_quality = COALESCE($5, sleep_quality),
                 notes = COALESCE($6, notes)
-            WHERE entry_id = $7
+            WHERE entry_id = $7 AND user_id = $8
         `;
-        await db.query(query, [date, mood, symptoms, energy_level, sleep_quality, notes, entryId]);
+        await db.query(query, [date, mood, symptoms, energy_level, sleep_quality, notes, entryId, req.session.user.user_id]);
         console.log("Entry has been updated");
+        req.flash("success", "Entry has been successfully edited!")
         res.redirect('/entries');  // Redirect to entries list after update
     } catch (error) {
         console.error("Error updating entry:", error);
-        res.status(500).send("Error updating entry");
+        req.flash("error", "An error occurred while editing the entry, please try again.")
+        res.redirect('/entries');
     }
 });
 
@@ -160,11 +172,13 @@ app.post("/delete/:id", ensureAuth, async (req, res) => {
     try {
         const query = "DELETE FROM daily_entries WHERE entry_id = $1 AND user_id = $2";
         await db.query(query, [entryId, req.session.user.user_id]);
+        req.flash("success", "Entry has been successfully deleted!")
         console.log("Entry has been deleted from database");
         res.redirect("/entries");
     } catch (error) {
         console.error("Error deleting entry", error)
-        res.status(500).send("Error deleting entry");
+        req.flash("error", "An error occurred while deleting the entry, please try again.")
+        res.redirect("/entries");
     }
 });
 
@@ -227,16 +241,17 @@ app.post('/new-user', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
-
         await db.query(
             `INSERT INTO users (username, email, password)
              VALUES ($1, $2, $3)`,
             [username, email, hashedPassword]
         );
 
+        req.flash("success", "New account created, please log in!")
         res.redirect('/login');
     } catch (error) {
         console.error("Error adding entry:", error);
+        req.flash("error", "An error occurred while creating the account.")
         res.status(500).send("Error adding user");
     }
 });
@@ -254,15 +269,18 @@ app.post('/login', async (req, res) => {
         const user = result.rows[0];
 
         if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(400).send("Invalid email or password");
+            req.flash('error', 'Invalid email or password');
+            return res.redirect('/login');
         }
 
         req.session.user = user;
+        req.flash('success', 'You are now logged in!');
         console.log('Session data after login:', req.session);        
         res.redirect('/');
     } catch (error) {
         console.error("Error logging in:", error.message);
-        res.status(500).send("An error ocurred during login");
+        req.flash('error', 'Error logging in, please try again.');
+        res.redirect('/login');
     }
 });
 
@@ -270,9 +288,11 @@ app.get('/logout', (req, res) => {
     if (req.session) {
         req.session.destroy((err) => {
             if (err) {
+                req.flash('error', 'Unable to log out');
                 return res.status(400).send('Unable to log out');
             } else {
-                res.redirect('/login'); // Or redirect to home page, if preferred
+                req.flash('success', 'You have logged out successfully.');
+                res.redirect('/login');
             }
         });
     } else {

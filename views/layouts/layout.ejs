@@ -19,6 +19,20 @@
     <%- include("../partials/loggedInStatus") %>
 
     <main>
+        <!-- Flash Messages -->
+        <% if (successMessage.length > 0) { %>
+            <div class="alert alert-success">
+                <%= successMessage %>
+            </div>
+        <% } %>
+
+        <% if (errorMessage.length > 0) { %>
+            <div class="alert alert-danger">
+                <%= errorMessage %>
+            </div>
+        <% } %>
+     
+        <!-- Page Content -->
         <%- body %> 
    </main>
    <%- include("../partials/footer") %>
