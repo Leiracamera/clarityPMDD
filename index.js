@@ -43,7 +43,18 @@ app.use(session({
     saveUninitialized: true,
 }));
 
-app.use(async (rex, res, next) => {
+app.use((req, res, next) => {
+    if (req.session.user) {
+        res.locals.user = req.session.user; 
+        console.log("User session set in locals:", res.locals.user);
+    } else {
+        res.locals.user = undefined; 
+        console.log("No user session available");
+    }
+    next();
+});
+
+app.use(async (req, res, next) => {
     try {
         const response = await axios.get("https://www.affirmations.dev/");
         res.locals.quote = response.data.affirmation;
@@ -251,7 +262,8 @@ app.post('/login', async (req, res) => {
             return res.status(400).send("Invalid email or password");
         }
 
-        req.session.user_id = user.user_id;
+        req.session.user = user;
+        console.log('Session data after login:', req.session);        
         res.send("Login successful!");
     } catch (error) {
         console.error("Error logging in:", error.message);

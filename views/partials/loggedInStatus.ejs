@@ -1,0 +1,9 @@
+<% if (user) { %>
+    <div class="status-bar">
+        Logged In | <a href="/logout">Logout</a>
+    </div>
+<% } else { %>
+    <div class="status-bar">
+        <a href="/login">Login</a>
+    </div>
+<% } %>
