@@ -287,6 +287,11 @@ app.get('/logout', (req, res) => {
     }
 });
 
+
+app.use((req, res) => {
+    res.status(404).render('404', { title: "Page Not Found" });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
