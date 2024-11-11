@@ -50,6 +50,9 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000 // Expires in 24hrs
+    }
 }));
 
 app.use(passport.initialize());
@@ -296,15 +299,26 @@ app.post('/new-user', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     try {
-        await db.query(
+        const result = await db.query(
             `INSERT INTO users (username, email, password)
-             VALUES ($1, $2, $3)`,
+             VALUES ($1, $2, $3) RETURNING *`,
             [username, email, hashedPassword]
         );
 
-        req.flash("success", "New account created, please log in!")
-        res.redirect('/login');
-    } catch (error) {
+        const user = result.rows[0];
+
+        req.login(user, (err) => {
+            if (err) {
+                console.error("Error logging in after registrations:", err);
+                req.flash("error", "Account created, please log in with your details.");
+                return res.redirect('/login');
+            }
+
+            req.flash("success", "Welcome! Your account has been created and you are now logged in.")
+            return res.redirect('/');
+        });
+
+      } catch (error) {
         console.error("Error adding entry:", error);
         req.flash("error", "An error occurred while creating the account.")
         res.status(500).send("Error adding user");
