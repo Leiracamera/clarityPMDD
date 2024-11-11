@@ -7,14 +7,17 @@ import axios from "axios";
 import bcrypt from "bcrypt";
 import session from "express-session";
 import flash from "connect-flash";
+import passport from "passport";
+import {Strategy as LocalStrategy} from "passport-local";
 
 
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
+const saltRounds = 10;
 
-
+// Database connection
 const db = new pg.Client({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -31,19 +34,28 @@ db.connect((err) =>{
     }
 });
 
+// Set up EJS as the view engine
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(expressLayouts);
 app.set('views', './views');
 app.set("layout", "layouts/layout");
+
+// Parse request bodies
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+// Configure sessions
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
 }));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Set up flash messages
 app.use(flash());
 app.use((req, res, next) => {
     res.locals.successMessage = req.flash('success');
@@ -52,25 +64,50 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use((req, res, next) => {
-    if (req.session.user) {
-        res.locals.user = req.session.user; 
-        console.log("User session set in locals:", res.locals.user);
-    } else {
-        res.locals.user = undefined; 
-        console.log("No user session available");
+// Define and config Passport local strategy
+passport.use(new LocalStrategy({
+    usernameField: 'email',
+    passwordField: 'password'
+}, async (email, password, done) => {
+    try {
+        const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+        const user = result.rows[0];
+
+        if (!user) {
+            return done (null, false, {message: 'Incorrect email.'});
+        }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return done (null, false, {message: 'Incorrect password.'});
+        }
+        return done (null, user);
+    } catch (error) {
+        return done(error);
     }
-    next();
+}));
+
+passport.serializeUser((user, done) => {
+    done(null, user.user_id);
 });
 
-function preventLoginAccess(req, res, next) {
-    if (req.session.user) {
-        req.flash("info", "You are already logged in.");
-        return res.redirect("/");
+passport.deserializeUser(async (id, done) => {
+    try {
+        const result = await db.query('SELECT * FROM users WHERE user_id = $1', [id]);
+        const user = result.rows[0];
+        done(null, user); 
+    } catch (error) {
+        done(error);
     }
-    next();
-}
+});
 
+// Middleware to set user data in `res.locals` for templates
+app.use((req, res, next) => {
+        res.locals.user = req.user || undefined; 
+        console.log("User session set in locals:", res.locals.user);
+        next();
+});
+
+// Middleware to fetch and display affirmations from API
 app.use(async (req, res, next) => {
     try {
         const response = await axios.get("https://www.affirmations.dev/");
@@ -82,13 +119,22 @@ app.use(async (req, res, next) => {
     next();
 });
 
+// Define middleware functions to present access or ensure authentication
+function preventLoginAccess(req, res, next) {
+    if (req.isAuthenticated()) {
+        req.flash("info", "You are already logged in.");
+        return res.redirect("/");
+    };
+    next();
+};
+
 function ensureAuth(req, res, next) {
-    if(req.session.user) {
-        next();
+    if(req.isAuthenticated()) {
+        return next();
     } else {
         res.redirect('/login');
-    }
-}
+    };
+};
 
 app.get("/", (req, res) => {
 
@@ -107,7 +153,7 @@ app.post('/new-entry', ensureAuth, async (req, res) => {
         await db.query(
             `INSERT INTO daily_entries (date, mood, symptoms, energy_level, sleep_quality, notes, user_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [date, mood, symptoms, energy_level, sleep_quality, notes, req.session.user.user_id]
+            [date, mood, symptoms, energy_level, sleep_quality, notes, req.user.user_id]
         );
 
         req.flash("success", "New Entry Added");
@@ -124,7 +170,7 @@ app.get('/entries', ensureAuth, async (req, res) => {
 try {
     const result = await db.query(
         'SELECT * FROM daily_entries WHERE user_id = $1 ORDER BY date DESC',
-        [req.session.user.user_id]
+        [req.user.user_id]
     );
     res.render("entries", { entries: result.rows });
     } catch (error) {
@@ -164,7 +210,7 @@ app.post("/edit/:id", ensureAuth, async (req, res) => {
                 notes = COALESCE($6, notes)
             WHERE entry_id = $7 AND user_id = $8
         `;
-        await db.query(query, [date, mood, symptoms, energy_level, sleep_quality, notes, entryId, req.session.user.user_id]);
+        await db.query(query, [date, mood, symptoms, energy_level, sleep_quality, notes, entryId, req.user.user_id]);
         console.log("Entry has been updated");
         req.flash("success", "Entry has been successfully edited!")
         res.redirect('/entries');  // Redirect to entries list after update
@@ -180,7 +226,7 @@ app.post("/delete/:id", ensureAuth, async (req, res) => {
     
     try {
         const query = "DELETE FROM daily_entries WHERE entry_id = $1 AND user_id = $2";
-        await db.query(query, [entryId, req.session.user.user_id]);
+        await db.query(query, [entryId, req.user.user_id]);
         req.flash("success", "Entry has been successfully deleted!")
         console.log("Entry has been deleted from database");
         res.redirect("/entries");
@@ -247,7 +293,7 @@ app.get('/new-user', preventLoginAccess, (req, res) => {
 
 app.post('/new-user', async (req, res) => {
     const { username, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     try {
         await db.query(
@@ -270,50 +316,33 @@ app.get('/login', preventLoginAccess, (req, res) => {
     res.render("login");
 });
 
-app.post('/login', async (req, res) => {
-    const {email, password } = req.body;
+app.post('/login', passport.authenticate('local', {
+    successRedirect: "/",
+    failureRedirect: "/login",
+    failureFlash: true
+}));
 
-    try {
-        const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-        const user = result.rows[0];
-
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            req.flash('error', 'Invalid email or password');
-            return res.redirect('/login');
+app.get('/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) {
+            console.error("Logout error:", err);
+            return next(err);
         }
-
-        req.session.user = user;
-        req.flash('success', 'You are now logged in!');
-        console.log('Session data after login:', req.session);        
-        res.redirect('/');
-    } catch (error) {
-        console.error("Error logging in:", error.message);
-        req.flash('error', 'Error logging in, please try again.');
+        req.flash('success', 'You have logged out successfully.');
         res.redirect('/login');
-    }
+    });
 });
 
-app.get('/logout', (req, res) => {
-    if (req.session) {
-        req.session.destroy((err) => {
-            if (err) {
-                console.error("Logout error:", err);
-                return res.redirect('/');
-            } else {
-                console.log("Session destroyed successfully"); 
-                res.redirect('/logout-success?loggedOut=true');
-            }
-        });
-    } else {
-        console.log("Session destroyed successfully"); 
-        res.render('logout-success', {req});
-    }
+app.post('/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) {
+            console.error("Logout error:", err);
+            return next(err);
+        }
+        req.flash('success', 'You have logged out successfully.');
+        res.redirect('/login');
+    });
 });
-
-app.get('/logout-success', (req, res) => {
-    res.render('logout-success', { req }); // Pass req to use req.query in EJS
-});
-
 
 app.use((req, res) => {
     res.status(404).render('404', { title: "Page Not Found" });
