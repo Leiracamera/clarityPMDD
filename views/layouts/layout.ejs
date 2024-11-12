@@ -20,13 +20,13 @@
 
     <main>
         <!-- Flash Messages -->
-        <% if (successMessage.length > 0) { %>
+        <% if (successMessage && successMessage.length > 0) { %>
             <div class="alert alert-success">
                 <%= successMessage %>
             </div>
         <% } %>
 
-        <% if (errorMessage.length > 0) { %>
+        <% if (errorMessage && errorMessage.length > 0) { %>
             <div class="alert alert-danger">
                 <%= errorMessage %>
             </div>

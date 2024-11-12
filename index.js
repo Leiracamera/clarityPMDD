@@ -9,6 +9,8 @@ import session from "express-session";
 import flash from "connect-flash";
 import passport from "passport";
 import {Strategy as LocalStrategy} from "passport-local";
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+
 
 
 
@@ -67,8 +69,27 @@ app.use((req, res, next) => {
     next();
 });
 
+// Middleware to set user data in `res.locals` for templates
+app.use((req, res, next) => {
+    res.locals.user = req.user || undefined; 
+    console.log("User session set in locals:", res.locals.user);
+    next();
+});
+
+// Middleware to fetch and display affirmations from API
+app.use(async (req, res, next) => {
+    try {
+        const response = await axios.get("https://www.affirmations.dev/");
+        res.locals.quote = response.data.affirmation;
+    } catch (error) {
+        console.error("Error fetching the quote:", error.message);
+        res.locals.quote = "This, too, shall pass.";
+    }
+    next();
+});
+
 // Define and config Passport local strategy
-passport.use(new LocalStrategy({
+passport.use('local', new LocalStrategy({
     usernameField: 'email',
     passwordField: 'password'
 }, async (email, password, done) => {
@@ -89,6 +110,31 @@ passport.use(new LocalStrategy({
     }
 }));
 
+// Define and config Google OAuth Strategy
+passport.use('google', new GoogleStrategy ({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "/auth/google/callback"
+},
+async (accessToken, refreshToken, profile, done) => {
+    try {
+        const result = await db.query("SELECT * FROM users WHERE google_id = $1", [profile.id]);
+        let user = result.rows[0];
+
+        if (!user) {
+            const insertResult = await db.query(
+                `INSERT INTO users (username, email, google_id) VALUES ($1, $2, $3) RETURNING *`,
+                [profile.displayName, profile.emails[0].value, profile.id]
+            );
+            user = insertResult.rows[0];
+        }
+        return done(null, user);
+    } catch (error) {
+        return done(error);
+    }
+}
+));
+
 passport.serializeUser((user, done) => {
     done(null, user.user_id);
 });
@@ -101,25 +147,6 @@ passport.deserializeUser(async (id, done) => {
     } catch (error) {
         done(error);
     }
-});
-
-// Middleware to set user data in `res.locals` for templates
-app.use((req, res, next) => {
-        res.locals.user = req.user || undefined; 
-        console.log("User session set in locals:", res.locals.user);
-        next();
-});
-
-// Middleware to fetch and display affirmations from API
-app.use(async (req, res, next) => {
-    try {
-        const response = await axios.get("https://www.affirmations.dev/");
-        res.locals.quote = response.data.affirmation;
-    } catch (error) {
-        console.error("Error fetching the quote:", error.message);
-        res.locals.quote = "This, too, shall pass.";
-    }
-    next();
 });
 
 // Define middleware functions to present access or ensure authentication
@@ -138,6 +165,99 @@ function ensureAuth(req, res, next) {
         res.redirect('/login');
     };
 };
+
+app.get('/login', preventLoginAccess, (req, res) => {
+    res.render("login");
+});
+
+app.post('/login', passport.authenticate('local', {
+    successRedirect: "/",
+    failureRedirect: "/login",
+    failureFlash: true
+}));
+
+app.get('/new-user', preventLoginAccess, (req, res) => {
+    res.render("new-user");
+});
+
+app.post('/new-user', async (req, res) => {
+    const { username, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    if(!password) {
+        req.flash('error', 'Password is required to make an account');
+        return res.redirect('/new-user');
+    }
+
+    try {
+
+        const existingUser = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+        
+        if (existingUser.rows.length > 0) {
+            req.flash('error', 'An account with this email already exists. Please log in instead.');
+            return res.redirect('/login');
+        }
+        
+        const result = await db.query(
+            `INSERT INTO users (username, email, password)
+             VALUES ($1, $2, $3) RETURNING *`,
+            [username, email, hashedPassword]
+        );
+
+        const user = result.rows[0];
+
+        req.login(user, (err) => {
+            if (err) {
+                console.error("Error logging in after registrations:", err);
+                req.flash("error", "Account created, please log in with your details.");
+                return res.redirect('/login');
+            }
+
+            req.flash("success", "Welcome! Your account has been created and you are now logged in.")
+            return res.redirect('/');
+        });
+
+      } catch (error) {
+        console.error("Error adding entry:", error);
+        req.flash("error", "An error occurred while creating the account.")
+        res.status(500).send("Error adding user");
+    }
+});
+
+app.get('/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) {
+            console.error("Logout error:", err);
+            return next(err);
+        }
+        req.flash('success', 'You have logged out successfully.');
+        res.redirect('/login');
+    });
+});
+
+app.post('/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) {
+            console.error("Logout error:", err);
+            return next(err);
+        }
+        req.flash('success', 'You have logged out successfully.');
+        res.redirect('/login');
+    });
+});
+
+// Google OAuth login routes
+app.get('/auth/google', passport.authenticate('google', {
+    scope: ['profile', 'email']
+}));
+
+//Google OAuth callback route
+app.get('/auth/google/callback', passport.authenticate('google', {
+    failureRedirect: '/login',
+    failureFlash: 'Google authentication failed. Please try again.'
+}), (req, res) => {
+    res.redirect('/');
+});
 
 app.get("/", (req, res) => {
 
@@ -288,74 +408,6 @@ app.get('/analytics', ensureAuth, async (req, res) => {
         console.error("Error fetching data:", error);
         res.status(500).send("Error fetching data");
     }
-});
-
-app.get('/new-user', preventLoginAccess, (req, res) => {
-    res.render("new-user");
-});
-
-app.post('/new-user', async (req, res) => {
-    const { username, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    try {
-        const result = await db.query(
-            `INSERT INTO users (username, email, password)
-             VALUES ($1, $2, $3) RETURNING *`,
-            [username, email, hashedPassword]
-        );
-
-        const user = result.rows[0];
-
-        req.login(user, (err) => {
-            if (err) {
-                console.error("Error logging in after registrations:", err);
-                req.flash("error", "Account created, please log in with your details.");
-                return res.redirect('/login');
-            }
-
-            req.flash("success", "Welcome! Your account has been created and you are now logged in.")
-            return res.redirect('/');
-        });
-
-      } catch (error) {
-        console.error("Error adding entry:", error);
-        req.flash("error", "An error occurred while creating the account.")
-        res.status(500).send("Error adding user");
-    }
-});
-
-
-app.get('/login', preventLoginAccess, (req, res) => {
-    res.render("login");
-});
-
-app.post('/login', passport.authenticate('local', {
-    successRedirect: "/",
-    failureRedirect: "/login",
-    failureFlash: true
-}));
-
-app.get('/logout', (req, res, next) => {
-    req.logout((err) => {
-        if (err) {
-            console.error("Logout error:", err);
-            return next(err);
-        }
-        req.flash('success', 'You have logged out successfully.');
-        res.redirect('/login');
-    });
-});
-
-app.post('/logout', (req, res, next) => {
-    req.logout((err) => {
-        if (err) {
-            console.error("Logout error:", err);
-            return next(err);
-        }
-        req.flash('success', 'You have logged out successfully.');
-        res.redirect('/login');
-    });
 });
 
 app.use((req, res) => {
